@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.7)
 
 # 프로젝트 이름 및 C++ 표준 설정
-project(liegroup_robotics)
+project(pRNE)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
@@ -11,13 +11,15 @@ option(BUILD_FOR_COMPACTRIO "Build for CompactRIO (Linux-based)" ON)
 option(BUILD_FOR_WINDOWS "Build for Windows" OFF)
 option(BUILD_FOR_UBUNTU "Build for Ubuntu" OFF)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Og")
-
+set(LIBNAME ${CMAKE_PROJECT_NAME})
+set(LIBNAME_UBUNTU ${CMAKE_PROJECT_NAME}_ubuntu)
 if (CMAKE_BUILD_TYPE STREQUAL  "")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1")
 endif()
 # 소스 파일 추가
 set(SOURCES src/gen.c)
 set(TEST_SOURCES src/callingSharedObject.cpp)
+set(TEST_SOURCES_WIN src/callingSharedObject_win.cpp)
 
 # CompactRIO 타겟 설정 (Linux 환경)
 if(BUILD_FOR_COMPACTRIO)
@@ -63,8 +65,8 @@ if(BUILD_FOR_COMPACTRIO)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
     # CompactRIO용 `.so` 라이브러리 생성
-    add_library(libcasadi_crio SHARED ${SOURCES})
-    target_include_directories(libcasadi_crio PUBLIC 
+    add_library(${LIBNAME} SHARED ${SOURCES})
+    target_include_directories(${LIBNAME} PUBLIC 
         ${CMAKE_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/include
     )
@@ -103,18 +105,18 @@ if(BUILD_FOR_WINDOWS)
     endif()
 
     # Windows용 `.dll` 라이브러리 생성
-    add_library(libcasadi_win SHARED ${SOURCES})
-    target_include_directories(libcasadi_win PUBLIC ${CMAKE_SOURCE_DIR}/src)
+    add_library(${LIBNAME} SHARED ${SOURCES})
+    target_include_directories(${LIBNAME} PUBLIC ${CMAKE_SOURCE_DIR}/src)
     include_directories(${CMAKE_SOURCE_DIR}/src)
     include_directories(${PROJECT_SOURCE_DIR}/include)
     
     # DLL 파일 생성 시 필요한 추가 플래그 설정 (MinGW 링커 옵션)
-    set_target_properties(libcasadi_win PROPERTIES PREFIX "" SUFFIX ".dll")
+    set_target_properties(${LIBNAME} PROPERTIES PREFIX "" SUFFIX ".dll")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++")
 
     # Windows 테스트 실행 파일 생성
-    add_executable(test_win ${TEST_SOURCES})
-    target_link_libraries(test_win libcasadi_win)
+    add_executable(test_win ${TEST_SOURCES_WIN})
+    target_link_libraries(test_win ${LIBNAME})
     add_definitions(-DWINDOWS)
 
     # Windows 빌드 시 다른 타겟 설정 무시
@@ -136,14 +138,18 @@ if(BUILD_FOR_UBUNTU)
     include_directories(${PROJECT_SOURCE_DIR}/include)
 
     # Ubuntu용 `.so` 라이브러리 생성
-    add_library(liegroup_robotics_ubuntu SHARED ${SOURCES})
+    add_library(${LIBNAME_UBUNTU} SHARED ${SOURCES})
+    target_link_libraries(${LIBNAME_UBUNTU} m)
 
     # 전처리기 플래그 추가 (Ubuntu용)
     add_definitions(-DUBUNTU)
-
+    add_executable(test ${TEST_SOURCES})
+    target_link_libraries(test PUBLIC  ${LIBNAME_UBUNTU} dl m)
     # Ubuntu 빌드 시 다른 타겟 설정 무시
     set(BUILD_FOR_COMPACTRIO OFF)
     set(BUILD_FOR_WINDOWS OFF)
+
+
 endif()
 
 # 타겟이 지정되지 않았을 때 오류 메시지 표시
